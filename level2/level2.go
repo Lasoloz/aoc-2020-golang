@@ -14,26 +14,47 @@ type pwdPolicy struct {
 func main() {
 	policies := readPolicies()
 
-	count := countValidPasswords(policies)
-	fmt.Println(count)
+	fmt.Println(countValidPasswords(policies, part1Validator))
+	fmt.Println(countValidPasswords(policies, part2Validator))
 }
 
-func countValidPasswords(policies []pwdPolicy) (correct int) {
+func countValidPasswords(policies []pwdPolicy, pwdValidator func(policy pwdPolicy) bool) (correct int) {
 	for _, p := range policies {
-		charCount := 0
-
-		for _, ch := range p.pwd {
-			if ch == p.char {
-				charCount++
-			}
-		}
-
-		if p.min <= charCount && charCount <= p.max {
+		if pwdValidator(p) {
 			correct++
 		}
 	}
 
 	return
+}
+
+func part1Validator(p pwdPolicy) bool {
+	charCount := 0
+
+	for _, ch := range p.pwd {
+		if ch == p.char {
+			charCount++
+		}
+	}
+
+	return p.min <= charCount && charCount <= p.max
+}
+
+func part2Validator(p pwdPolicy) bool {
+	positionCount := 0
+
+	for index, ch := range p.pwd {
+		pos := index + 1
+		if pos != p.min && pos != p.max {
+			continue
+		}
+
+		if ch == p.char {
+			positionCount++
+		}
+	}
+
+	return positionCount == 1
 }
 
 func readPolicies() []pwdPolicy {
