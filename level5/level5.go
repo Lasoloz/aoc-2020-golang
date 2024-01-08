@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -16,6 +17,7 @@ func main() {
 	passes := readBoardingPasses()
 
 	fmt.Println(findHighestId(passes))
+	fmt.Println(findMissingId(passes)) // Printing the array and some string replacement gave me quicker answer tho...
 }
 
 func findHighestId(passes []seat) int {
@@ -28,6 +30,29 @@ func findHighestId(passes []seat) int {
 	}
 
 	return maxPassId
+}
+
+func findMissingId(passes []seat) any {
+	ids := make([]int, 0)
+
+	for _, pass := range passes {
+		ids = append(ids, pass.id)
+	}
+
+	sort.Ints(ids)
+
+	missingId := 28
+
+	for _, id := range ids[1:] {
+		if id-missingId == 1 {
+			missingId = id
+		} else {
+			missingId++
+			break
+		}
+	}
+
+	return missingId
 }
 
 func readBoardingPasses() []seat {
