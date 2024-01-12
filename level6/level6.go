@@ -7,33 +7,53 @@ import (
 	"strings"
 )
 
+type groupDeclarations struct {
+	peopleCount int
+	answers     map[byte]int
+}
+
 func main() {
 	answers := readAnswers()
 
-	fmt.Println(sumYesQuestionsByGroups(answers))
+	fmt.Println(sumYesQuestionsByAnyoneByGroups(answers))
+	fmt.Println(sumYesQuestionsByEveryoneByGroups(answers))
 }
 
-func sumYesQuestionsByGroups(answers []map[byte]int) int {
+func sumYesQuestionsByAnyoneByGroups(declarations []groupDeclarations) int {
 	sum := 0
 
-	for _, group := range answers {
-		sum += len(group)
+	for _, group := range declarations {
+		sum += len(group.answers)
 	}
 
 	return sum
 }
 
-func readAnswers() []map[byte]int {
+func sumYesQuestionsByEveryoneByGroups(declarations []groupDeclarations) int {
+	sum := 0
+
+	for _, group := range declarations {
+		for _, answerCount := range group.answers {
+			if answerCount == group.peopleCount {
+				sum++
+			}
+		}
+	}
+
+	return sum
+}
+
+func readAnswers() []groupDeclarations {
 	reader := bufio.NewReader(os.Stdin)
 
-	answers := make([]map[byte]int, 0)
-	current := make(map[byte]int)
+	answers := make([]groupDeclarations, 0)
+	current := groupDeclarations{0, make(map[byte]int)}
 
 	for {
 		line, err := reader.ReadString('\n')
 
 		if err != nil {
-			if len(current) != 0 {
+			if len(current.answers) != 0 {
 				answers = append(answers, current)
 			}
 			break
@@ -43,10 +63,12 @@ func readAnswers() []map[byte]int {
 
 		if line == "" {
 			answers = append(answers, current)
-			current = make(map[byte]int)
+			current = groupDeclarations{0, make(map[byte]int)}
+			continue
 		}
 
-		readPersonAnswers(current, line)
+		readPersonAnswers(current.answers, line)
+		current.peopleCount++
 	}
 
 	return answers
