@@ -110,7 +110,7 @@ func readPassportFields(passport map[string]string, line string) {
 		}
 
 		key, value := keyValue[0], keyValue[1]
-		(passport)[key] = value
+		passport[key] = value
 	}
 }
 
