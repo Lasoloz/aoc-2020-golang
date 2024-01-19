@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const searchedBag = "shiny gold"
+
 var ruleSplitter = regexp.MustCompile("^([\\w ]+) bags contain (.+)\\.$")
 var ruleMatcher = regexp.MustCompile("^(\\d+) ([\\w ]+) bags?$")
 
@@ -20,7 +22,8 @@ type bagRuleMapping struct {
 func main() {
 	rules := readBagRules()
 
-	fmt.Println(countBagInEventuallyOthers(rules, "shiny gold"))
+	fmt.Println(countBagInEventuallyOthers(rules, searchedBag))
+	fmt.Println(countMandatoryContentsOfBag(rules, searchedBag) - 1)
 }
 
 func countBagInEventuallyOthers(rules map[string]bagRuleMapping, bag string) int {
@@ -53,6 +56,22 @@ func canEventuallyContain(rules map[string]bagRuleMapping, current string, searc
 	}
 
 	return false
+}
+
+func countMandatoryContentsOfBag(rules map[string]bagRuleMapping, bag string) int {
+	// Let's see if a brute-force recursion works
+	ruleMapping := rules[bag]
+
+	if len(ruleMapping.contents) == 0 {
+		return 1
+	}
+
+	contentCount := 1
+	for key, count := range ruleMapping.contents {
+		contentCount += count * countMandatoryContentsOfBag(rules, key)
+	}
+
+	return contentCount
 }
 
 func readBagRules() (rules map[string]bagRuleMapping) {
