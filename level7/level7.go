@@ -26,20 +26,33 @@ func main() {
 func countBagInEventuallyOthers(rules map[string]bagRuleMapping, bag string) int {
 	count := 0
 
-	for _, rule := range rules {
-		if checkBag(rule.contents, bag) {
+	for key := range rules {
+		if canEventuallyContain(rules, key, bag) {
 			count++
 		}
-
-		// recursion?
 	}
 
 	return count
 }
 
-func checkBag(bag map[string]int, searched string) bool {
-	_, ok := bag[searched]
-	return ok
+func canEventuallyContain(rules map[string]bagRuleMapping, current string, searched string) bool {
+	toCheck := make([]bagRuleMapping, 0)
+	toCheck = append(toCheck, rules[current])
+
+	for len(toCheck) > 0 {
+		checked := toCheck[len(toCheck)-1]
+		toCheck = toCheck[:len(toCheck)-1]
+
+		for key := range checked.contents {
+			if key == searched {
+				return true
+			}
+
+			toCheck = append(toCheck, rules[key])
+		}
+	}
+
+	return false
 }
 
 func readBagRules() (rules map[string]bagRuleMapping) {
@@ -52,7 +65,6 @@ func readBagRules() (rules map[string]bagRuleMapping) {
 		line = strings.Trim(line, "\n ")
 
 		if err != nil || line == "" {
-			fmt.Println("Am I here?")
 			return
 		}
 
