@@ -2,23 +2,24 @@ package main
 
 import (
 	"fmt"
-	"slices"
+	"sort"
 )
 
 func main() {
 	joltages := readJoltages()
-	slices.Sort(joltages)
+	adjustedJoltages := sortAndAppendMinMaxJoltages(joltages)
 
-	fmt.Println(findMultipliedDistribution(joltages))
+	fmt.Println(findMultipliedDistribution(adjustedJoltages))
+	fmt.Println(countArrangements(adjustedJoltages))
 }
 
 func findMultipliedDistribution(joltages []int) int {
-	currentJoltage := 0
+	currentJoltage := joltages[0]
 
 	jolt1Count := 0
 	jolt3Count := 0
 
-	for _, joltage := range joltages {
+	for _, joltage := range joltages[1:] {
 		diff := joltage - currentJoltage
 
 		if diff > 3 {
@@ -34,8 +35,31 @@ func findMultipliedDistribution(joltages []int) int {
 		currentJoltage = joltage
 	}
 
-	jolt3Count++
 	return jolt1Count * jolt3Count
+}
+
+func countArrangements(joltages []int) int {
+	length := len(joltages)
+	pathCounts := make([]int, length)
+	pathCounts[length-1] = 1 // End has one possible path
+
+	for i := length - 2; i >= 0; i-- {
+		pathCount := 0
+		current := joltages[i]
+
+		for j, joltage := range joltages[i+1 : min(length, i+4)] {
+			if joltage-current > 3 {
+				break
+			}
+
+			pathCountIndex := i + j + 1
+			pathCount += pathCounts[pathCountIndex]
+		}
+
+		pathCounts[i] = pathCount
+	}
+
+	return pathCounts[0]
 }
 
 func readJoltages() []int {
@@ -51,4 +75,12 @@ func readJoltages() []int {
 
 		buf = append(buf, value)
 	}
+}
+
+func sortAndAppendMinMaxJoltages(joltages []int) []int {
+	adjustedJoltages := make([]int, len(joltages)+1, len(joltages)+2)
+	copy(adjustedJoltages[1:], joltages)
+	sort.Ints(adjustedJoltages)
+	adjustedJoltages = append(adjustedJoltages, adjustedJoltages[len(joltages)]+3)
+	return adjustedJoltages
 }
