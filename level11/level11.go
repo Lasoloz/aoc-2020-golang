@@ -16,6 +16,11 @@ type point struct {
 	x, y int
 }
 
+type countRulesType struct {
+	seatCounter func([][]seatConfigType, int, int) int
+	tolerance   int
+}
+
 var adjacentDeltas = []point{
 	{-1, -1}, {-1, 00}, {-1, 01},
 	{00, -1} /* 0, 0*/, {00, 01},
@@ -24,9 +29,31 @@ var adjacentDeltas = []point{
 
 func main() {
 	seatConfig := readSeatConfig()
-	iterateUntilStable(seatConfig)
 
-	fmt.Println(countOccupiedSeats(seatConfig))
+	adjacencyRules := countRulesType{countAdjacentSeats, 4}
+	directionalRules := countRulesType{countDirectionallyVisibleSeats, 5}
+
+	fmt.Println(solve(seatConfig, adjacencyRules))
+	fmt.Println(solve(seatConfig, directionalRules))
+}
+
+func solve(seatConfig [][]seatConfigType, adjacencyRules countRulesType) any {
+	return countOccupiedSeats(iterateUntilStable(
+		copyMatrix(seatConfig),
+		adjacencyRules,
+	))
+}
+
+func copyMatrix[Type any](matrix [][]Type) [][]Type {
+	result := make([][]Type, 0, len(matrix))
+
+	for _, row := range matrix {
+		resultRow := make([]Type, len(row))
+		copy(resultRow, row)
+		result = append(result, resultRow)
+	}
+
+	return result
 }
 
 func countOccupiedSeats(config [][]seatConfigType) any {
@@ -43,16 +70,18 @@ func countOccupiedSeats(config [][]seatConfigType) any {
 	return count
 }
 
-func iterateUntilStable(seatConfig [][]seatConfigType) {
+func iterateUntilStable(seatConfig [][]seatConfigType, rules countRulesType) [][]seatConfigType {
 	for i := 0; i < maxIterations; i++ {
-		if !iterate(seatConfig) {
+		if !iterate(seatConfig, rules) {
 			break
 		}
 	}
+
+	return seatConfig
 }
 
-func iterate(seatConfig [][]seatConfigType) bool {
-	posToToggle := findToggleablePositions(seatConfig)
+func iterate(seatConfig [][]seatConfigType, rules countRulesType) bool {
+	posToToggle := findToggleablePositions(seatConfig, rules)
 
 	for _, pos := range posToToggle {
 		seatConfig[pos.y][pos.x] = toggleSeat(seatConfig[pos.y][pos.x])
@@ -61,7 +90,7 @@ func iterate(seatConfig [][]seatConfigType) bool {
 	return len(posToToggle) > 0
 }
 
-func findToggleablePositions(seatConfig [][]seatConfigType) []point {
+func findToggleablePositions(seatConfig [][]seatConfigType, rules countRulesType) []point {
 	posToToggle := make([]point, 0)
 
 	for y := range seatConfig {
@@ -70,10 +99,10 @@ func findToggleablePositions(seatConfig [][]seatConfigType) []point {
 				continue
 			}
 
-			_, occup := countAdjacentSeats(seatConfig, y, x)
+			occup := rules.seatCounter(seatConfig, y, x)
 			if value == emptySeat && occup == 0 {
 				posToToggle = append(posToToggle, point{x, y})
-			} else if value == occupSeat && occup >= 4 {
+			} else if value == occupSeat && occup >= rules.tolerance {
 				posToToggle = append(posToToggle, point{x, y})
 			}
 		}
@@ -81,7 +110,9 @@ func findToggleablePositions(seatConfig [][]seatConfigType) []point {
 	return posToToggle
 }
 
-func countAdjacentSeats(seatConfig [][]seatConfigType, y int, x int) (empty, occup int) {
+func countAdjacentSeats(seatConfig [][]seatConfigType, y int, x int) int {
+	occup := 0
+
 	for _, delta := range adjacentDeltas {
 		aX, aY := x+delta.x, y+delta.y
 		if !isValid(aX, aY, seatConfig) {
@@ -89,14 +120,34 @@ func countAdjacentSeats(seatConfig [][]seatConfigType, y int, x int) (empty, occ
 		}
 
 		val := seatConfig[aY][aX]
-		if val == emptySeat {
-			empty++
-		} else if val == occupSeat {
+		if val == occupSeat {
 			occup++
 		}
 	}
 
-	return
+	return occup
+}
+
+func countDirectionallyVisibleSeats(seatConfig [][]seatConfigType, y int, x int) int {
+	occup := 0
+
+	for _, delta := range adjacentDeltas {
+		cx, cy := x, y
+		for {
+			cx += delta.x
+			cy += delta.y
+
+			if !isValid(cx, cy, seatConfig) || seatConfig[cy][cx] == emptySeat {
+				break
+			}
+
+			if seatConfig[cy][cx] == occupSeat {
+				occup++
+				break
+			}
+		}
+	}
+	return occup
 }
 
 func isValid(aX, aY int, config [][]seatConfigType) bool {
