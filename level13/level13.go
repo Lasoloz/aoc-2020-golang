@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const stop = 100_000_000_000
+
 type wrappedInt struct {
 	value int
 }
@@ -18,6 +20,11 @@ func (receiver *wrappedInt) String() string {
 	return fmt.Sprintf("{%d}", receiver.value)
 }
 
+type timetableEntry struct {
+	index int
+	value int
+}
+
 func main() {
 	departure, timetable, ok := readDepartureAndTimetable()
 
@@ -27,6 +34,7 @@ func main() {
 	}
 
 	fmt.Println(differenceMultipliedById(departure, timetable))
+	fmt.Println(findIncrementalDeparture(timetable))
 }
 
 func differenceMultipliedById(departure int, timetable []*wrappedInt) int {
@@ -45,6 +53,42 @@ func differenceMultipliedById(departure int, timetable []*wrappedInt) int {
 	}
 
 	return lowestId * lowestDiff
+}
+
+func findIncrementalDeparture(timetable []*wrappedInt) int {
+	simplifiedTimetable := simplifyTimetable(timetable)
+	for timestamp := 0; timestamp < stop; timestamp++ {
+		ok := true
+
+		if timestamp%100_000_000 == 0 {
+			fmt.Print(".")
+		}
+
+		for _, entry := range simplifiedTimetable {
+			if (timestamp+entry.index)%entry.value != 0 {
+				ok = false
+				break
+			}
+		}
+
+		if ok {
+			return timestamp
+		}
+	}
+
+	return 0
+}
+
+func simplifyTimetable(timetable []*wrappedInt) []timetableEntry {
+	result := make([]timetableEntry, 0)
+
+	for index, time := range timetable {
+		if time != nil {
+			result = append(result, timetableEntry{index, time.value})
+		}
+	}
+
+	return result
 }
 
 func readDepartureAndTimetable() (departure int, timetable []*wrappedInt, ok bool) {
