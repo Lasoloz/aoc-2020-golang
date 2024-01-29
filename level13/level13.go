@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const stop = 100_000_000_000
+const stop = math.MaxInt
 
 type wrappedInt struct {
 	value int
@@ -57,17 +57,28 @@ func differenceMultipliedById(departure int, timetable []*wrappedInt) int {
 
 func findIncrementalDeparture(timetable []*wrappedInt) int {
 	simplifiedTimetable := simplifyTimetable(timetable)
-	for timestamp := 0; timestamp < stop; timestamp++ {
+
+	jump := simplifiedTimetable[0].value
+	match := 0
+
+	// This algorithm is found by trial and error, and it would probably break for non-prime
+	// numbers. Maybe it is worth checking if it actually does.
+	// Start by first value 'a' in timetable
+	// Find first matching sequence by jumping 'a' increments, where the next value is contained
+	// in the a,b series. For the example 7,13,... that is 77
+	// Then start by incrementing by 7*13 jumps
+	// Find the next matching a,b,c series, in this case that is 7,13,x,x,59 matching on a start
+	// of 350. Then repeat until final value is found
+	for timestamp := jump; timestamp < stop; timestamp += jump {
 		ok := true
 
-		if timestamp%100_000_000 == 0 {
-			fmt.Print(".")
-		}
-
-		for _, entry := range simplifiedTimetable {
+		for index, entry := range simplifiedTimetable {
 			if (timestamp+entry.index)%entry.value != 0 {
 				ok = false
 				break
+			} else if index > match {
+				jump *= entry.value
+				match = index
 			}
 		}
 
