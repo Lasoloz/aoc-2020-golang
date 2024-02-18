@@ -15,13 +15,13 @@ type instructionDef struct {
 }
 
 type memoryDef struct {
-	memoryMap map[int]int64
-	maskForm  int64
-	maskValue int64
+	memoryMap  map[int]int
+	maskForm   int
+	maskValues []int
 }
 
 func (m memoryDef) String() string {
-	return fmt.Sprintf("{%v %b %b}", m.memoryMap, m.maskForm, m.maskValue)
+	return fmt.Sprintf("{%v %b %b}", m.memoryMap, m.maskForm, m.maskValues)
 }
 
 var maskingInstRegex = regexp.MustCompile("mask = (.+)")
@@ -30,11 +30,16 @@ var memInstRegex = regexp.MustCompile("mem\\[(\\d+)] = (\\d+)")
 func main() {
 	instructions := readInstructions()
 
-	fmt.Println(performInstructions(instructions))
+	fmt.Println(performInstructions(instructions, setSimpleMask, setSimpleMem))
+	fmt.Println(performInstructions(instructions, setAddressMask, setMemOfFloatingAddresses))
 }
 
-func performInstructions(instructions []instructionDef) int64 {
-	memory := memoryDef{make(map[int]int64), 0, 0}
+func performInstructions(
+	instructions []instructionDef,
+	setMask func(m *memoryDef, instruction instructionDef),
+	setMem func(m *memoryDef, instruction instructionDef),
+) int {
+	memory := memoryDef{make(map[int]int), 0, make([]int, 0)}
 
 	for _, instruction := range instructions {
 		if instruction.address < 0 {
@@ -47,31 +52,84 @@ func performInstructions(instructions []instructionDef) int64 {
 	return sumMemoryMap(memory)
 }
 
-func setMask(m *memoryDef, instruction instructionDef) {
-	maskForm, maskValue := int64(0), int64(0)
+func setSimpleMask(m *memoryDef, instruction instructionDef) {
+	maskForm, maskValue := 0, 0
 	for _, ch := range instruction.value {
 		maskForm <<= 1
 		maskValue <<= 1
 
 		if ch == '1' || ch == '0' {
-			maskValue += int64(ch - '0')
+			maskValue += int(ch - '0')
 		} else {
 			maskForm += 1
 			// Mask format is inverse, keeping only original bits
 		}
 	}
-	m.maskForm, m.maskValue = maskForm, maskValue
+	m.maskForm = maskForm
+	m.maskValues = []int{maskValue}
 }
 
-func setMem(m *memoryDef, instruction instructionDef) {
+func setSimpleMem(m *memoryDef, instruction instructionDef) {
+	if len(m.maskValues) < 1 {
+		_, _ = fmt.Fprintln(os.Stderr, "Warning: empty mask slice!")
+		return
+	}
 	// It should be safe to ignore this error
-	value, _ := strconv.ParseInt(instruction.value, 10, 64)
+	value, _ := strconv.Atoi(instruction.value)
+	maskValue := m.maskValues[0]
 	value &= m.maskForm
-	m.memoryMap[instruction.address] = value | m.maskValue
+	m.memoryMap[instruction.address] = value | maskValue
 }
 
-func sumMemoryMap(memory memoryDef) int64 {
-	sum := int64(0)
+func setAddressMask(m *memoryDef, instruction instructionDef) {
+	maskForm := 0
+	maskValues := make([]int, 1)
+
+	for _, ch := range instruction.value {
+		maskForm <<= 1
+
+		if ch == 'X' {
+			maskValues = duplicateMasksWithVariedLSB(maskValues)
+		} else if ch == '1' {
+			maskValues = shiftAndSetLSB(maskValues, 1)
+		} else {
+			maskForm |= 1
+			maskValues = shiftAndSetLSB(maskValues, 0)
+		}
+	}
+
+	m.maskForm = maskForm
+	m.maskValues = maskValues
+}
+
+func setMemOfFloatingAddresses(m *memoryDef, instruction instructionDef) {
+	// It should be safe to ignore this error
+	value, _ := strconv.Atoi(instruction.value)
+	baseAddress := instruction.address
+	for _, maskValue := range m.maskValues {
+		address := (baseAddress & m.maskForm) | maskValue
+		m.memoryMap[address] = value
+	}
+}
+
+func duplicateMasksWithVariedLSB(masks []int) []int {
+	result := make([]int, len(masks)*2)
+	for i := range masks {
+		result[2*i] = masks[i] << 1
+		result[2*i+1] = (masks[i] << 1) | 1
+	}
+	return result
+}
+
+func shiftAndSetLSB(masks []int, lsbValue int) []int {
+	for i := range masks {
+		masks[i] = (masks[i] << 1) | lsbValue
+	}
+	return masks
+}
+
+func sumMemoryMap(memory memoryDef) int {
+	sum := 0
 	for _, value := range memory.memoryMap {
 		sum += value
 	}
