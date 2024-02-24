@@ -6,7 +6,9 @@ import (
 	"strings"
 )
 
-const searchLen = 2020
+const searchLen1 = 2020
+const searchLen2 = 30_000_000
+const buildLen = searchLen2
 
 func main() {
 	startingNumbers := readStartingNumbers()
@@ -16,28 +18,35 @@ func main() {
 		return
 	}
 
-	fmt.Println(find2020thNumber(startingNumbers))
+	result := buildList(startingNumbers)
+	fmt.Println(result[searchLen1-1])
+	fmt.Println(result[searchLen2-1])
 }
 
-func find2020thNumber(startingNumbers []int) int {
-	numbers := make([]int, searchLen)
+func buildList(startingNumbers []int) []int {
+	numbers := make([]int, buildLen)
+	previousIndices := make(map[int]int)
 	copy(numbers, startingNumbers)
 
-	for i := len(startingNumbers); i < searchLen; i++ {
-		last := numbers[i-1]
+	for i := 0; i < len(startingNumbers)-1; i++ {
+		num := startingNumbers[i]
+		previousIndices[num] = i
+	}
+
+	for i := len(startingNumbers); i < buildLen; i++ {
+		lastIndex := i - 1
+		last := numbers[lastIndex]
 		diff := 0
 
-		for j := i - 2; j >= 0; j-- {
-			if numbers[j] == last {
-				diff = i - j - 1
-				break
-			}
+		if prevIndex, ok := previousIndices[last]; ok {
+			diff = lastIndex - prevIndex
 		}
 
 		numbers[i] = diff
+		previousIndices[last] = i - 1
 	}
 
-	return numbers[searchLen-1]
+	return numbers
 }
 
 func readStartingNumbers() []int {
